@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 스마트 견적서 자동 생성기</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <header class="app-header no-print">
+      <div class="header-left">
+        <div class="logo-badge">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span>AI Smart Quotation</span>
+        </div>
+        <h1 class="header-title">스마트 견적서 생성기</h1>
+      </div>
+      <div class="header-actions">
+        <div class="sample-dropdown-container">
+          <button id="sampleBtn" class="btn btn-secondary" title="실무 샘플 대화 불러오기">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            샘플 불러오기
+          </button>
+          <div id="sampleMenu" class="dropdown-menu hidden">
+            <button class="dropdown-item" data-sample="website">🌐 홈페이지/쇼핑몰 제작 의뢰</button>
+            <button class="dropdown-item" data-sample="interior">🏢 사무실 인테리어 시공 견적</button>
+            <button class="dropdown-item" data-sample="coffee">☕ 카페 원두 및 부자재 정기 납품</button>
+            <button class="dropdown-item" data-sample="marketing">📈 SNS 마케팅 & 영상 제작 대행</button>
+          </div>
+        </div>
+
+
+        <button id="clearBtn" class="btn btn-ghost" title="양식 초기화">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+          초기화
+        </button>
+
+        <button id="printBtn" class="btn btn-primary" title="인쇄 및 PDF로 저장">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          인쇄 / PDF 저장
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="main-layout">
+      <!-- Left Panel: AI Input & Control Panel -->
+      <aside class="ai-panel no-print">
+        <div class="panel-section">
+          <div class="section-header">
+            <h2>🎙️ 음성 또는 텍스트 입력</h2>
+            <span class="badge-tag">OpenRouter AI</span>
+          </div>
+          <p class="panel-desc">
+            이메일, 메신저 대화, 메모 등 <strong>어떤 글이든</strong> 붙여넣거나 <strong>마이크로 말하면</strong> 견적서에 맞게 자동으로 추출하여 채워줍니다.
+          </p>
+
+          <!-- Speech-To-Text Audio Recorder Box -->
+          <div class="stt-box">
+            <button id="micBtn" class="mic-button" title="음성 인식 시작/중지">
+              <div class="mic-icon-wrapper">
+                <svg id="micIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                  <line x1="12" y1="19" x2="12" y2="23"></line>
+                  <line x1="8" y1="23" x2="16" y2="23"></line>
+                </svg>
+              </div>
+              <div class="mic-pulse"></div>
+            </button>
+            <div class="stt-text-info">
+              <span id="sttStatus" class="stt-status">마이크를 눌러 음성으로 말해보세요</span>
+              <span id="sttSubStatus" class="stt-substatus">한국어 실시간 음성인식 지원</span>
+            </div>
+          </div>
+
+          <!-- Free-text input area -->
+          <div class="textarea-container">
+            <textarea id="rawInput" placeholder="예: 'OO기획 김철수 과장님께 보낼 견적이야. 프로젝트명은 홈페이지 리뉴얼이고, 디자인 150만원, 프론트엔드 개발 200만원, 백엔드 연동 100만원으로 넣어줘. 부가세는 별도로 하고, 공급자는 우리 회사 정보로 해줘. 납기는 계약 후 4주 이내야.'"></textarea>
+            <div class="textarea-footer">
+              <span id="charCount" class="char-count">0자</span>
+              <button id="clearInputBtn" class="btn-text" title="내용 지우기">지우기</button>
+            </div>
+          </div>
+
+          <!-- Quick Example Chips -->
+          <div class="quick-chips">
+            <span class="chip-label">빠른 예시:</span>
+            <button class="chip" data-text="대한상사 이영희 부장님께 드리는 견적입니다. 사내 인트라넷 시스템 구축 건으로 UI/UX 디자인 250만원(1식), 백엔드 API 개발 400만원(1식), 클라우드 인프라 세팅 150만원(1식) 입니다. 부가세 별도이며 유효기간은 15일입니다.">🖥️ 시스템 구축</button>
+            <button class="chip" data-text="강남 스튜디오 대표님, 조명 장비 렌탈 3일 90만원(단가 30만, 3개), 카메라 바디 렌탈 60만원(단가 20만, 3개), 현장 오퍼레이터 지원비 1일 35만원 부가세 포함으로 견적서 부탁드립니다.">🎥 장비 렌탈</button>
+          </div>
+
+          <!-- Action Button -->
+          <button id="processBtn" class="btn btn-accent btn-large">
+            <svg class="sparkle-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>
+            </svg>
+            <span>AI 견적서 자동 완성하기</span>
+          </button>
+
+          <!-- Process State / Result Banner -->
+          <div id="statusBanner" class="status-banner hidden">
+            <div class="spinner"></div>
+            <span id="statusMessage">AI가 견적서 항목을 분석하고 있습니다...</span>
+          </div>
+        </div>
+
+        <!-- Supplier Defaults Quick Settings -->
+        <div class="panel-section supplier-settings-section">
+          <div class="collapsible-header" id="supplierToggle">
+            <h3>🏢 내 공급자 기본 정보 설정</h3>
+            <svg class="chevron-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+          <div class="collapsible-content" id="supplierContent">
+            <p class="section-helper">여기에 내 회사 정보를 입력해 두면, AI 작성 시 항상 내 정보가 자동으로 적용됩니다.</p>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>상호(회사명)</label>
+                <input type="text" id="myCompany" placeholder="예: (주)알파소프트">
+              </div>
+              <div class="form-group">
+                <label>대표자명</label>
+                <input type="text" id="myCeo" placeholder="예: 홍길동">
+              </div>
+              <div class="form-group">
+                <label>사업자등록번호</label>
+                <input type="text" id="myBizNum" placeholder="예: 123-45-67890">
+              </div>
+              <div class="form-group">
+                <label>전화번호</label>
+                <input type="text" id="myPhone" placeholder="예: 02-1234-5678">
+              </div>
+              <div class="form-group full-width">
+                <label>사업장 주소</label>
+                <input type="text" id="myAddress" placeholder="예: 서울특별시 강남구 테헤란로 123, 4층">
+              </div>
+              <div class="form-group full-width">
+                <label>이메일</label>
+                <input type="email" id="myEmail" placeholder="예: contact@alphasoft.co.kr">
+              </div>
+            </div>
+            <button id="saveSupplierBtn" class="btn btn-outline btn-sm">공급자 정보 저장</button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Right Panel: The Precise A4 Document Viewer -->
+      <section class="document-viewer-container">
+        <div class="document-toolbar no-print">
+          <div class="doc-toolbar-left">
+            <span class="preview-tag">A4 규격 미리보기</span>
+            <span class="doc-hint">각 항목을 직접 클릭하여 수정하거나 행을 추가/삭제할 수 있습니다.</span>
+          </div>
+          <div class="doc-toolbar-right">
+            <button id="addRowBtn" class="btn btn-sm btn-secondary" title="품목 행 추가">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              행 추가
+            </button>
+            <button id="fillVatToggle" class="btn btn-sm btn-secondary" title="부가세 10% 일괄 적용 토글">
+              부가세 설정 (<span id="vatModeLabel">별도</span>)
+            </button>
+          </div>
+        </div>
+
+        <!-- The Exact Paper Document (Matches 견적서양식.pdf) -->
+        <div class="paper-sheet" id="invoicePaper">
+          <!-- Document Header Title -->
+          <div class="invoice-title-wrapper">
+            <h1 class="invoice-title">견 적 서</h1>
+          </div>
+
+          <!-- Top Meta Grid: Recipient (Left) vs Supplier (Right) -->
+          <div class="invoice-top-meta">
+            <!-- Left Box: Recipient & Date -->
+            <div class="meta-box meta-left">
+              <table class="meta-table left-table">
+                <colgroup>
+                  <col style="width: 80px;">
+                  <col style="width: auto;">
+                </colgroup>
+                <tr>
+                  <th class="label-cell">수 신</th>
+                  <td class="value-cell">
+                    <input type="text" id="docRecipient" class="doc-input doc-recipient-input" placeholder="귀하 또는 상호명을 입력하세요">
+                  </td>
+                </tr>
+                <tr>
+                  <th class="label-cell">견 적 명</th>
+                  <td class="value-cell">
+                    <input type="text" id="docQuoteTitle" class="doc-input" placeholder="견적 프로젝트명">
+                  </td>
+                </tr>
+                <tr>
+                  <th class="label-cell">견적날짜</th>
+                  <td class="value-cell">
+                    <div class="date-row">
+                      <input type="text" id="docQuoteDateYear" class="doc-input date-input year-input" placeholder="2026"> 년
+                      <input type="text" id="docQuoteDateMonth" class="doc-input date-input month-input" placeholder="09"> 월
+                      <input type="text" id="docQuoteDateDay" class="doc-input date-input day-input" placeholder="10"> 일
+                    </div>
+                  </td>
+                </tr>
+                <tr>
+                  <th class="label-cell">유효기간</th>
+                  <td class="value-cell">
+                    <input type="text" id="docValidUntil" class="doc-input" placeholder="견적일로부터 30일간">
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <!-- Right Box: Supplier Details -->
+            <div class="meta-box meta-right">
+              <table class="meta-table right-table">
+                <colgroup>
+                  <col style="width: 80px;">
+                  <col style="width: 140px;">
+                  <col style="width: 70px;">
+                  <col style="width: 130px;">
+                </colgroup>
+                <tr>
+                  <th class="label-cell">상 호</th>
+                  <td class="value-cell">
+                    <input type="text" id="docSupplierName" class="doc-input" placeholder="공급자 상호">
+                  </td>
+                  <th class="label-cell">대 표</th>
+                  <td class="value-cell">
+                    <input type="text" id="docSupplierCeo" class="doc-input" placeholder="대표자명">
+                  </td>
+                </tr>
+                <tr>
+                  <th class="label-cell">사업자번호</th>
+                  <td class="value-cell">
+                    <input type="text" id="docSupplierBizNum" class="doc-input" placeholder="000-00-00000">
+                  </td>
+                  <th class="label-cell">전화번호</th>
+                  <td class="value-cell">
+                    <input type="text" id="docSupplierPhone" class="doc-input" placeholder="02-000-0000">
+                  </td>
+                </tr>
+                <tr>
+                  <th class="label-cell">주 소</th>
+                  <td class="value-cell" colspan="3">
+                    <input type="text" id="docSupplierAddress" class="doc-input" placeholder="사업장 소재지 주소">
+                  </td>
+                </tr>
+                <tr>
+                  <th class="label-cell">E-mail</th>
+                  <td class="value-cell" colspan="3">
+                    <input type="text" id="docSupplierEmail" class="doc-input" placeholder="담당자 이메일">
+                  </td>
+                </tr>
+              </table>
+            </div>
+          </div>
+
+          <!-- Total Amount Highlight Strip -->
+          <div class="total-strip">
+            <div class="strip-label">견적금액</div>
+            <div class="strip-korean-amount">
+              <span class="prefix">일금</span>
+              <span id="docKoreanAmount" class="korean-text">영</span>
+              <span class="suffix">원정 (</span>
+              <span id="docNumberAmount" class="num-currency">₩0</span>
+              <span class="suffix">)</span>
+            </div>
+            <div class="strip-vat-badge" id="vatIncludedText">※ 부가세별도</div>
+          </div>
+
+          <!-- Main Quotation Items Table -->
+          <div class="items-table-wrapper">
+            <table class="items-table" id="itemsTable">
+              <thead>
+                <tr>
+                  <th class="col-item">항 목</th>
+                  <th class="col-desc">세 부 내 용</th>
+                  <th class="col-qty">수 량</th>
+                  <th class="col-price">단 가</th>
+                  <th class="col-amount">금 액</th>
+                  <th class="col-vat">세 액</th>
+                  <th class="col-action no-print"></th>
+                </tr>
+              </thead>
+              <tbody id="itemsTableBody">
+                <!-- Rows injected by JavaScript -->
+              </tbody>
+              <tfoot>
+                <tr class="table-total-row">
+                  <td class="total-label" colspan="2">합 계</td>
+                  <td class="total-val" id="tableTotalQty">-</td>
+                  <td class="total-val">-</td>
+                  <td class="total-val" id="tableTotalAmount">0</td>
+                  <td class="total-val" id="tableTotalVat">0</td>
+                  <td class="no-print"></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Bottom Summary Section -->
+          <div class="invoice-bottom-section">
+            <!-- Left: Remarks / Notes -->
+            <div class="remarks-container">
+              <div class="remarks-title">[참조사항]</div>
+              <textarea id="docRemarks" class="doc-textarea" placeholder="1. 납품 기한 및 결제 조건 (예: 계약금 50%, 잔금 50%)&#10;2. 입금 계좌: OO은행 123-456-789012 (예금주: OOO)&#10;3. 기타 특약 사항"></textarea>
+            </div>
+
+            <!-- Right: Subtotal, VAT, Grand Total Summary Box -->
+            <div class="summary-box-container">
+              <table class="summary-table">
+                <colgroup>
+                  <col style="width: 100px;">
+                  <col style="width: 160px;">
+                </colgroup>
+                <tr>
+                  <th class="summary-label">공 급 가</th>
+                  <td class="summary-value" id="summarySupplyPrice">0</td>
+                </tr>
+                <tr>
+                  <th class="summary-label">부 가 세</th>
+                  <td class="summary-value" id="summaryVat">0</td>
+                </tr>
+                <tr class="grand-total-row">
+                  <th class="summary-label">소 계</th>
+                  <td class="summary-value" id="summaryGrandTotal">0</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

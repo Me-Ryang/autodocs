@@ -1,0 +1,9 @@
+# 환경변수 파일 (절대 Git에 포함하지 마세요)
+.env
+
+# Node.js 의존성
+node_modules/
+
+# OS 파일
+.DS_Store
+Thumbs.db
