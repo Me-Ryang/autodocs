@@ -15,18 +15,26 @@
     MODEL: 'ai_quote_selected_model',
   };
 
-  // 사용할 AI 모델 (서버에서 환경변수로 관리하지만 클라이언트에서도 변경 가능)
+  // 사용할 AI 모델 (OpenRouter 활성 모델)
   const DEFAULT_MODELS = {
     PRIMARY: 'deepseek/deepseek-chat',
     FALLBACKS: [
-      'google/gemini-flash-1.5',
       'google/gemini-2.5-flash',
       'meta-llama/llama-3.3-70b-instruct',
     ],
   };
 
-  // 백엔드 프록시 엔드포인트
-  const API_ENDPOINT = '/api/chat';
+  // 백엔드 프록시 엔드포인트 동적 확인 (file:// 또는 다른 포트 지원)
+  function getApiEndpoint(path = '/api/chat') {
+    if (
+      window.location.protocol === 'file:' ||
+      (window.location.hostname === 'localhost' && window.location.port !== '3000') ||
+      (window.location.hostname === '127.0.0.1' && window.location.port !== '3000')
+    ) {
+      return `http://localhost:3000${path}`;
+    }
+    return path;
+  }
 
   const state = {
     selectedModel: localStorage.getItem(STORAGE_KEYS.MODEL) || DEFAULT_MODELS.PRIMARY,
@@ -504,18 +512,25 @@
       : '';
 
     // 백엔드 프록시를 통해 호출 (서버가 API Key를 환경변수에서 읽어 주입)
-    const response = await fetch(API_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: modelName,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `${supplierContext}\n\n[사용자 입력 내용]:\n${rawText}` },
-        ],
-        temperature: 0.1,
-      }),
-    });
+    let response;
+    try {
+      response = await fetch(getApiEndpoint('/api/chat'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: modelName,
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: `${supplierContext}\n\n[사용자 입력 내용]:\n${rawText}` },
+          ],
+          temperature: 0.1,
+        }),
+      });
+    } catch (networkErr) {
+      throw new Error(
+        '백엔드 프록시 서버(http://localhost:3000)에 연결할 수 없습니다.\n터미널에서 "node server.js" 또는 start.bat을 실행해 주세요.'
+      );
+    }
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
@@ -530,13 +545,23 @@
       throw new Error('AI로부터 비어있는 응답을 받았습니다.');
     }
 
-    // JSON만 안전하게 추출
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    // 마크다운 코드블록 제거 후 JSON 추출
+    let cleanContent = content.trim();
+    if (cleanContent.startsWith('```')) {
+      cleanContent = cleanContent.replace(/^```[a-zA-Z]*\n?/, '').replace(/\n?```$/, '');
+    }
+
+    const jsonMatch = cleanContent.match(/\{[\s\S]*\}/);
     if (!jsonMatch) {
       throw new Error('AI 응답에서 JSON 형식을 추출할 수 없습니다.');
     }
 
-    return JSON.parse(jsonMatch[0]);
+    try {
+      return JSON.parse(jsonMatch[0]);
+    } catch (parseErr) {
+      const sanitized = jsonMatch[0].replace(/,\s*([}\]])/g, '$1');
+      return JSON.parse(sanitized);
+    }
   }
 
   async function processWithAI() {
@@ -641,22 +666,9 @@
   // 7. Profile & Settings Management
   // ==========================================
   function loadSavedSettings() {
-    dom.apiKeyInput.value = state.apiKey;
-    updateApiKeyBadge();
-
-    // If previously saved model was the old unavailable gemini-2.0-flash-001, reset to deepseek-chat
-    if (state.selectedModel === 'google/gemini-2.0-flash-001' || !state.selectedModel) {
+    if (!state.selectedModel || state.selectedModel.includes('gemini-2.0-flash') || state.selectedModel.includes('gemini-flash-1.5')) {
       state.selectedModel = DEFAULT_MODELS.PRIMARY;
       localStorage.setItem(STORAGE_KEYS.MODEL, state.selectedModel);
-    }
-
-    if (state.selectedModel) {
-      dom.modelSelect.value = state.selectedModel;
-      if (dom.modelSelect.value !== state.selectedModel) {
-        dom.modelSelect.value = 'custom';
-        dom.customModelGroup.classList.remove('hidden');
-        dom.customModelInput.value = state.selectedModel;
-      }
     }
 
     const savedSupplier = localStorage.getItem(STORAGE_KEYS.SUPPLIER);
@@ -800,7 +812,43 @@
   }
 
   // ==========================================
-  // 9. App Initialization
+  // 9. Server Health Check & Status
+  // ==========================================
+  async function checkServerHealth() {
+    const badge = document.getElementById('serverStatusBadge');
+    try {
+      const res = await fetch(getApiEndpoint('/api/health'));
+      if (res.ok) {
+        const data = await res.json();
+        if (badge) {
+          if (data.hasKey) {
+            badge.textContent = '● 서버 연결됨 (API 키 활성)';
+            badge.title = '로컬 백엔드 서버가 정상 동작 중이며 .env API 키가 확인되었습니다.';
+            badge.style.color = '#34d399';
+            badge.style.borderColor = 'rgba(52, 211, 153, 0.4)';
+            badge.style.backgroundColor = 'rgba(52, 211, 153, 0.15)';
+          } else {
+            badge.textContent = '▲ .env에 API Key 없음';
+            badge.title = '.env 파일에 OPENROUTER_API_KEY가 입력되지 않았습니다.';
+            badge.style.color = '#fbbf24';
+            badge.style.borderColor = 'rgba(251, 191, 36, 0.4)';
+            badge.style.backgroundColor = 'rgba(251, 191, 36, 0.15)';
+          }
+        }
+      }
+    } catch {
+      if (badge) {
+        badge.textContent = '✕ 서버 오프라인 (node server.js)';
+        badge.title = '로컬 서버가 실행되지 않았습니다. start.bat 또는 node server.js를 실행해 주세요.';
+        badge.style.color = '#f87171';
+        badge.style.borderColor = 'rgba(248, 113, 113, 0.4)';
+        badge.style.backgroundColor = 'rgba(248, 113, 113, 0.15)';
+      }
+    }
+  }
+
+  // ==========================================
+  // 10. App Initialization
   // ==========================================
   function init() {
     setTodayDate();
@@ -808,6 +856,7 @@
     renderTableRows();
     initSpeechRecognition();
     setupEventListeners();
+    checkServerHealth();
   }
 
   if (document.readyState === 'loading') {

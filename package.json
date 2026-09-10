@@ -1,17 +1,11 @@
 {
   "name": "ai-smart-quotation",
   "version": "1.0.0",
-  "description": "AI 기반 스마트 견적서 자동 생성기 - 백엔드 프록시 서버",
+  "description": "AI 기반 스마트 견적서 자동 생성기",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "dotenv": "^16.3.1",
-    "node-fetch": "^2.7.0",
-    "cors": "^2.8.5"
   },
   "engines": {
     "node": ">=18.0.0"
